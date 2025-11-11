@@ -1,0 +1,259 @@
+<?php
+// Start a session to manage user login state. Must be the very first thing.
+session_start();
+// Assumes config.php creates a mysqli connection object named $conn
+include "config.php";
+
+// Initialize variables to avoid errors
+$register_error = '';
+$login_error = '';
+$post_data = []; // To repopulate form fields on error
+
+// --- HANDLE REGISTRATION REQUEST ---
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_action'])) {
+    $post_data = $_POST; // Store posted data to repopulate form
+
+    // Sanitize user inputs
+    $name = trim($_POST['username']);
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
+
+    // Server-side validation
+    if (empty($name) || empty($email) || empty($password)) {
+        $register_error = "All fields are required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $register_error = "Invalid email format.";
+    } elseif (strlen($password) < 8) {
+        $register_error = "Password must be at least 8 characters long.";
+    } else {
+        // Use PREPARED STATEMENTS to prevent SQL Injection
+        $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->store_result();
+        
+        if ($stmt->num_rows > 0) {
+            $register_error = "An account with this email already exists.";
+        } else {
+            // **SECURITY FIX: Hash the password for secure storage**
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Insert the new user into the database using a prepared statement
+            $stmt_insert = $conn->prepare("INSERT INTO users(name, email, password, role, status, created_at) VALUES (?, ?, ?, 'user', 'active', NOW())");
+            // Note: role is 'user', not 'users' as in your original code, to match your enum('admin','user')
+            $stmt_insert->bind_param("sss", $name, $email, $hashed_password);
+
+            if ($stmt_insert->execute()) {
+                // Automatically log the user in after successful registration
+                $_SESSION['loggedin'] = true;
+                $_SESSION['user_id'] = $stmt_insert->insert_id;
+                $_SESSION['name'] = $name;
+                $_SESSION['role'] = 'user';
+                header("location: home.php"); // Redirect to user homepage
+                exit;
+            } else {
+                $register_error = "Something went wrong. Please try again later.";
+            }
+            $stmt_insert->close();
+        }
+        $stmt->close();
+    }
+}
+
+// --- HANDLE LOGIN REQUEST ---
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login_action'])) {
+    $post_data = $_POST; // Store email to repopulate form
+
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
+
+    if (empty($email) || empty($password)) {
+        $login_error = "Email and password are required.";
+    } else {
+        // Use PREPARED STATEMENTS to prevent SQL Injection
+        $stmt = $conn->prepare("SELECT user_id, name, password, role, status FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+            
+            // **SECURITY FIX: Verify hashed password**
+            if (password_verify($password, $user['password'])) {
+                if ($user['status'] === 'active') {
+                    // Password is correct, start a new session
+                    $_SESSION['loggedin'] = true;
+                    $_SESSION['user_id'] = $user['user_id'];
+                    $_SESSION['name'] = $user['name'];
+                    $_SESSION['role'] = $user['role'];
+
+                    // Redirect admin to admin page, user to home page
+                    if ($user['role'] === 'admin') {
+                        header("location: admin.php");
+                    } else {
+                        header("location: home.php");
+                    }
+                    exit;
+                } else {
+                    $login_error = "Your account is blocked. Please contact an administrator.";
+                }
+            } else {
+                $login_error = "The email or password you entered is incorrect.";
+            }
+        } else {
+            $login_error = "The email or password you entered is incorrect.";
+        }
+        $stmt->close();
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Academix - Login & Registration</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .input-box {
+            position: relative; /* This is crucial for positioning the icon */
+        }
+        .password-toggle {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #162938;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h2 class="logo">Sports Academix</h2>
+        <nav class="navigation">
+            <a href="#">Home</a>
+            <a href="#">About</a>
+            <button class="btnLogin-popup">Login</button>
+        </nav>
+    </header>
+
+    <div class="wrapper">
+        <span class="icon-close"><ion-icon name="close"></ion-icon></span>
+        
+        <!-- LOGIN FORM -->
+        <div class="form-box login">
+            <h2>Login</h2>
+            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST" novalidate>
+                
+                <?php if (!empty($login_error)): ?>
+                    <div class="server-message server-error"><?php echo $login_error; ?></div>
+                <?php endif; ?>
+
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="mail"></ion-icon></span>
+                    <input type="email" name="email" value="<?php echo htmlspecialchars($post_data['email'] ?? ''); ?>" required>
+                    <label>Email</label>
+                </div>
+                <!-- MODIFIED: Lock icon removed from this password field -->
+                <div class="input-box">
+                    <input type="password" name="password" required>
+                    <label>Password</label>
+                    <ion-icon name="eye-outline" class="password-toggle"></ion-icon>
+                </div>
+                <div class="remember-forgot">
+                    <label><input type="checkbox">Remember me</label>
+                    <a href="#">Forgot Password?</a>
+                </div>
+                <button type="submit" name="login_action" class="btn">Login</button>
+                <div class="login-register">
+                    <p>Don't have an account? <a href="#" class="register-link">Register</a></p>
+                </div>
+            </form>
+        </div>
+
+        <!-- REGISTRATION FORM -->
+        <div class="form-box register">
+            <h2>Registration</h2>
+            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST" novalidate>
+
+                <?php if (!empty($register_error)): ?>
+                    <div class="server-message server-error"><?php echo $register_error; ?></div>
+                <?php endif; ?>
+
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="person"></ion-icon></span>
+                    <input type="text" name="username" value="<?php echo htmlspecialchars($post_data['username'] ?? ''); ?>" required>
+                    <label>Username</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon"><ion-icon name="mail"></ion-icon></span>
+                    <input type="email" name="email" value="<?php echo htmlspecialchars($post_data['email'] ?? ''); ?>" required>
+                    <label>Email</label>
+                </div>
+                <!-- MODIFIED: Lock icon removed from this password field -->
+                <div class="input-box">
+                    <input type="password" name="password" required>
+                    <label>Password</label>
+                    <ion-icon name="eye-outline" class="password-toggle"></ion-icon>
+                </div>
+                <div class="remember-forgot">
+                    <label><input type="checkbox" name="terms" required> I agree to the terms & conditions</label>
+                </div>
+                <button type="submit" name="register_action" class="btn">Register</button>
+                <div class="login-register">
+                    <p>Already have an account? <a href="#" class="login-link">Login</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        const wrapper = document.querySelector('.wrapper');
+        const loginLink = document.querySelector('.login-link');
+        const registerLink = document.querySelector('.register-link');
+        const btnPopup = document.querySelector('.btnLogin-popup');
+        const iconClose = document.querySelector('.icon-close');
+        
+        registerLink.addEventListener('click', (e) => { e.preventDefault(); wrapper.classList.add('active'); });
+        loginLink.addEventListener('click', (e) => { e.preventDefault(); wrapper.classList.remove('active'); });
+        btnPopup.addEventListener('click', () => { wrapper.classList.add('active-popup'); });
+        iconClose.addEventListener('click', () => { wrapper.classList.remove('active-popup'); wrapper.classList.remove('active'); });
+        
+        const togglePasswordIcons = document.querySelectorAll('.password-toggle');
+        togglePasswordIcons.forEach(icon => {
+            icon.addEventListener('click', () => {
+                // MODIFIED: Simplified the DOM traversal to get the input field
+                const passwordInput = icon.parentElement.querySelector('input');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.setAttribute('name', 'eye-off-outline');
+                } else {
+                    passwordInput.type = 'password';
+                    icon.setAttribute('name', 'eye-outline');
+                }
+            });
+        });
+
+        <?php
+        if (!empty($login_error)) {
+            echo "wrapper.classList.add('active-popup');";
+        }
+        if (!empty($register_error)) {
+            echo "wrapper.classList.add('active-popup');";
+            echo "wrapper.classList.add('active');";
+        }
+        ?>
+    </script>
+    
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</body>
+</html>

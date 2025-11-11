@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functional Sports Management System - Admin Dashboard</title>
+    
+    <!-- Font Awesome CDN for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- EMBEDDED CSS - NO EXTERNAL FRAMEWORKS NEEDED -->
+    <style>
+        /* General Body and Font Styles */
+        body {
+            background-color: #f3f4f6; /* bg-gray-100 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Modern font stack */
+            margin: 0;
+            color: #1f2937; /* text-gray-800 */
+        }
+
+        /* Main Layout Containers */
+        .h-screen { height: 100vh; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-1 { flex: 1 1 0%; }
+        .flex-shrink-0 { flex-shrink: 0; }
+        .overflow-hidden { overflow: hidden; }
+        .overflow-y-auto { overflow-y: auto; }
+        .overflow-x-auto { overflow-x: auto; }
+        .h-full { height: 100%; }
+
+        /* Spacing (Padding, Margin, Gaps) */
+        .p-2 { padding: 0.5rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .pl-10 { padding-left: 2.5rem; }
+        .pr-4 { padding-right: 1rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mr-4 { margin-right: 1rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-8 { margin-bottom: 2rem; }
+        .mt-auto { margin-top: auto; }
+        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
+        .space-x-3 > *:not(:first-child) { margin-left: 0.75rem; }
+        .space-x-4 > *:not(:first-child) { margin-left: 1rem; }
+        .space-y-4 > *:not(:first-child) { margin-top: 1rem; }
+        .gap-4 { gap: 1rem; }
+        .gap-6 { gap: 1.5rem; }
+
+        /* Flexbox & Grid */
+        .items-center { align-items: center; }
+        .items-start { align-items: flex-start; }
+        .justify-between { justify-content: space-between; }
+        .grid { display: grid; }
+        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        @media (min-width: 768px) { .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (min-width: 1024px) {
+            .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+
+        /* Sizing */
+        .w-10 { width: 2.5rem; } .h-10 { height: 2.5rem; }
+        .w-16 { width: 4rem; } .h-16 { height: 4rem; }
+        .w-64 { width: 16rem; }
+        .min-w-full { min-width: 100%; }
+
+        /* Typography */
+        .text-xs { font-size: 0.75rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-3xl { font-size: 1.875rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .font-medium { font-weight: 500; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-wider { letter-spacing: 0.05em; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .whitespace-nowrap { white-space: nowrap; }
+
+        /* Colors */
+        .bg-black { background-color: #000; }
+        .bg-white { background-color: #fff; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .bg-blue-50 { background-color: #eff6ff; }
+        .bg-blue-100 { background-color: #dbeafe; }
+        .bg-blue-600 { background-color: #2563eb; }
+        .bg-blue-900 { background-color: #1e3a8a; }
+        .bg-green-50 { background-color: #f0fdf4; }
+        .bg-green-100 { background-color: #dcfce7; }
+        .bg-green-500 { background-color: #22c55e; }
+        .bg-purple-50 { background-color: #faf5ff; }
+        .bg-purple-100 { background-color: #f3e8ff; }
+        .bg-yellow-50 { background-color: #fefce8; }
+        .bg-yellow-100 { background-color: #fef08a; }
+        .bg-red-100 { background-color: #fee2e2; }
+        .bg-red-500 { background-color: #ef4444; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .bg-gray-400 { background-color: #9ca3af; }
+
+
+        .text-white { color: #fff; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-gray-500 { color: #6b7281; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-800 { color: #1f2937; }
+        .text-blue-500 { color: #3b82f6; }
+        .text-blue-600 { color: #2563eb; }
+        .text-blue-800 { color: #1e40af; }
+        .text-green-500 { color: #22c55e; }
+        .text-green-800 { color: #166534; }
+        .text-purple-500 { color: #8b5cf6; }
+        .text-purple-800 { color: #5b21b6; }
+        .text-yellow-500 { color: #eab308; }
+        .text-yellow-800 { color: #854d0e; }
+        .text-red-500 { color: #ef4444; }
+        .text-red-600 { color: #dc2626; }
+        .text-red-800 { color: #991b1b; }
+        
+
+        /* Borders and Shadows */
+        .rounded { border-radius: 0.25rem; }
+        .rounded-md { border-radius: 0.375rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .rounded-full { border-radius: 9999px; }
+        .border { border: 1px solid #d1d5db; }
+        .border-t { border-top: 1px solid #e5e7eb; }
+        .border-b { border-bottom: 1px solid #e5e7eb; }
+        .divide-y > *:not(:first-child) { border-top: 1px solid #e5e7eb; }
+        .shadow { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+
+        /* Interactivity and Transitions */
+        button, input, select { font-family: inherit; font-size: 100%; margin: 0; padding: 0; border: none; background: none; color: inherit; }
+        button { cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .left-3 { left: 0.75rem; }
+        .top-3 { top: 0.75rem; }
+        .cursor-pointer { cursor: pointer; }
+        .cursor-not-allowed { cursor: not-allowed; }
+        .transition { transition: all 0.15s ease-in-out; }
+        .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+        .hover\:bg-blue-100:hover { background-color: #dbeafe; }
+        .hover\:bg-green-100:hover { background-color: #dcfce7; }
+        .hover\:bg-green-600:hover { background-color: #16a34a; }
+        .hover\:bg-purple-100:hover { background-color: #f3e8ff; }
+        .hover\:bg-yellow-100:hover { background-color: #fef08a; }
+        .hover\:bg-red-600:hover { background-color: #dc2626; }
+        .hover\:bg-red-700:hover { background-color: #b91c1c; } /* Logout button hover */
+        .hover\:text-blue-900:hover { color: #1e3a8a; }
+        .hover\:text-red-900:hover { color: #7f1d1d; }
+        .hover\:underline:hover { text-decoration: underline; }
+        
+        /* Custom Animations & Tab Logic */
+        .sidebar { transition: all 0.3s ease-in-out; }
+        .dashboard-card { transition: all 0.3s ease-in-out; }
+        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Modal Styles --- */
+        .modal-hidden { display: none; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 999; }
+        .modal-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); z-index: 1000; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1rem; }
+        .modal-header .close-btn { font-size: 1.5rem; font-weight: bold; line-height: 1; border: none; background: none; cursor: pointer; }
+        .modal-body form label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151; }
+        .modal-body form input, .modal-body form select, .modal-body form textarea { width: 100%; box-sizing: border-box; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; margin-bottom: 1rem; }
+        .modal-body form button[type="submit"] { width: 100%; padding: 0.75rem; border-radius: 0.375rem; color: white; background-color: #2563eb; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+        .modal-body form button[type="submit"]:hover { background-color: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <!-- Main container -->
+    <div class="flex h-screen">
+        
+        <!-- Sidebar -->
+        <div class="sidebar w-64 bg-black text-white p-4 flex flex-col flex-shrink-0">
+            <div class="p-4 flex items-center space-x-2">
+                <img src="ChatGPT Image Jul 13, 2025, 09_32_30 PM.png" alt="Sports Academix logo" class="w-16 h-16">
+                <h1 class="text-xl font-bold">Sports Academix</h1>
+            </div>
+            <!-- Navigation starts here -->
+            <nav class="mt-6 flex flex-col flex-1">
+                <!-- Main nav links -->
+                <div>
+                    <div class="px-4 py-3 rounded-md bg-blue-900 cursor-pointer tab-button" data-tab="dashboard"><i class="fas fa-tachometer-alt fa-fw mr-2"></i> Dashboard</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="users"><i class="fas fa-users fa-fw mr-2"></i> User Management</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="sports"><i class="fas fa-futbol fa-fw mr-2"></i> Sports Management</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="events"><i class="fas fa-calendar-alt fa-fw mr-2"></i> Event Management</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="schedules"><i class="fas fa-clock fa-fw mr-2"></i> Schedule Management</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="registrations"><i class="fas fa-clipboard-list fa-fw mr-2"></i> Registrations</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="teams"><i class="fas fa-people-group fa-fw mr-2"></i> Team Management</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="scores"><i class="fas fa-star fa-fw mr-2"></i> Score Management</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="logs"><i class="fas fa-history fa-fw mr-2"></i> Admin Logs</div>
+                    <div class="px-4 py-3 rounded-md hover:bg-blue-700 cursor-pointer tab-button" data-tab="feedback"><i class="fas fa-comments fa-fw mr-2"></i> User Feedback</div>
+                </div>
+                <!-- Logout Button pushed to the bottom -->
+                <div id="logoutBtn" class="mt-auto px-4 py-3 rounded-md hover:bg-red-700 cursor-pointer transition">
+                    <i class="fas fa-sign-out-alt fa-fw mr-2"></i>
+                    <span>Logout</span>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center">
+                <h2 class="text-2xl font-semibold text-gray-800" id="page-title">Dashboard</h2>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <img src="WhatsApp Image 2025-07-18 at 22.04.05_29fabd2e.jpg" alt="Admin profile picture" class="rounded-full w-10 h-10">
+                        <span>Admin </span>
+                        <i class="fas fa-caret-down text-gray-500"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Content Area -->
+            <main class="flex-1 overflow-y-auto p-6">
+                
+                <!-- Dashboard Tab -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="dashboard-card bg-white rounded-lg shadow p-6"><div class="flex justify-between items-center"><div><h3 class="text-gray-500 text-sm">Total Users</h3><p id="totalUsersStat" class="text-3xl font-bold">0</p></div><i class="fas fa-users text-blue-500 text-3xl"></i></div></div>
+                        <div class="dashboard-card bg-white rounded-lg shadow p-6"><div class="flex justify-between items-center"><div><h3 class="text-gray-500 text-sm">Active Sports</h3><p id="activeSportsStat" class="text-3xl font-bold">0</p></div><i class="fas fa-futbol text-green-500 text-3xl"></i></div></div>
+                        <div class="dashboard-card bg-white rounded-lg shadow p-6"><div class="flex justify-between items-center"><div><h3 class="text-gray-500 text-sm">Upcoming Events</h3><p id="upcomingEventsStat" class="text-3xl font-bold">0</p></div><i class="fas fa-calendar-alt text-purple-500 text-3xl"></i></div></div>
+                        <div class="dashboard-card bg-white rounded-lg shadow p-6"><div class="flex justify-between items-center"><div><h3 class="text-gray-500 text-sm">Pending Registrations</h3><p id="pendingRegsStat" class="text-3xl font-bold">0</p></div><i class="fas fa-clipboard-list text-yellow-500 text-3xl"></i></div></div>
+                    </div>
+                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg shadow p-6"><h3 class="text-lg font-semibold mb-4">Recent Activities</h3><div id="recentActivitiesContainer" class="space-y-4"></div></div>
+                        <div class="bg-white rounded-lg shadow p-6"><h3 class="text-lg font-semibold mb-4">Quick Actions</h3><div class="grid grid-cols-2 gap-4"><button data-tab-link="sports" class="p-4 bg-blue-50 text-blue-800 rounded-lg hover:bg-blue-100 transition flex flex-col items-center"><i class="fas fa-plus-circle text-2xl mb-2"></i><span>Add New Sport</span></button><button data-tab-link="events" class="p-4 bg-green-50 text-green-800 rounded-lg hover:bg-green-100 transition flex flex-col items-center"><i class="fas fa-calendar-plus text-2xl mb-2"></i><span>Create Event</span></button><button data-tab-link="teams" class="p-4 bg-purple-50 text-purple-800 rounded-lg hover:bg-purple-100 transition flex flex-col items-center"><i class="fas fa-users text-2xl mb-2"></i><span>Manage Teams</span></button><button data-tab-link="registrations" class="p-4 bg-yellow-50 text-yellow-800 rounded-lg hover:bg-yellow-100 transition flex flex-col items-center"><i class="fas fa-clipboard-list text-2xl mb-2"></i><span>Review Registrations</span></button></div></div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="users" class="tab-content">
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-xl font-semibold">User Management</h2><button id="addUserBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"><i class="fas fa-plus mr-2"></i> Add User</button></div>
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                    </div>
+                </div>
+                
+                <!-- Sports Management Tab -->
+                <div id="sports" class="tab-content">
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-xl font-semibold">Sports Management</h2><button id="addSportBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"><i class="fas fa-plus mr-2"></i> Add Sport</button></div>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sport Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Players</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr></thead><tbody id="sportsTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+
+                <!-- Event Management Tab -->
+                <div id="events" class="tab-content">
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-xl font-semibold">Event Management</h2><button id="addEventBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"><i class="fas fa-calendar-plus mr-2"></i> Create Event</button></div>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sport</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr></thead><tbody id="eventsTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+                
+                <!-- Schedule Management Tab -->
+                <div id="schedules" class="tab-content">
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-xl font-semibold">Schedule Management</h2><p class="text-sm text-gray-600">This is a view of all scheduled events. Manage them in the Event Management tab.</p></div>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event / Match</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody id="schedulesTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+
+                <!-- Registrations Tab -->
+                <div id="registrations" class="tab-content">
+                    <h2 class="text-xl font-semibold mb-6">Pending Registrations</h2>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered At</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr></thead><tbody id="registrationsTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+
+                <!-- Teams Tab -->
+                <div id="teams" class="tab-content">
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-xl font-semibold">Team Management</h2><button id="addTeamBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"><i class="fas fa-plus mr-2"></i> Create Team</button></div>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sport</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Captain</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Players</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr></thead><tbody id="teamsTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+
+                <!-- Scores Tab -->
+                <div id="scores" class="tab-content">
+                    <h2 class="text-xl font-semibold mb-6">Score Management</h2>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Match</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr></thead><tbody id="scoresTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+
+                <!-- Admin Logs Tab -->
+                <div id="logs" class="tab-content">
+                    <h2 class="text-xl font-semibold mb-6">Admin Activity Logs</h2>
+                    <div class="bg-white rounded-lg shadow overflow-x-auto"><table class="min-w-full"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th></tr></thead><tbody id="logsTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+                </div>
+
+                <!-- Feedback Tab -->
+                <div id="feedback" class="tab-content">
+                    <h2 class="text-xl font-semibold mb-6">User Feedback</h2>
+                    <div id="feedbackContainer" class="space-y-4"></div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP -->
+    <div id="mainModal" class="modal-hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="modalTitle" class="text-xl font-semibold">Modal Title</h3>
+                <button id="closeModalBtn" class="close-btn">×</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+                <!-- Form content will be injected here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- EMBEDDED JAVASCRIPT -->
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- GLOBAL SELECTORS --- //
+        const pageTitle = document.getElementById('page-title');
+        const modal = document.getElementById('mainModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        let db = {}; // This will be our local cache of the database data
+
+        // --- API & UTILITY FUNCTIONS --- //
+
+        async function apiRequest(action, method = 'GET', body = null) {
+            // In a real app, the API endpoint would be in a config file
+            const url = `admin_api.php?action=${action}`;
+            const options = {
+                method: method,
+                headers: {},
+            };
+            if (method === 'POST' && body) {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+                const result = await response.json();
+                if (result.status !== 'success') {
+                    throw new Error(result.message || 'An unknown API error occurred');
+                }
+                return result; // Return the full result object { status, data, message }
+            } catch (error) {
+                console.error('API Request Error:', error);
+                showAlert(`API Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        const showAlert = (message, type = 'info') => {
+            // In a real app, use a proper toast notification library
+            const prefix = type === 'error' ? 'Error: ' : 'Success: ';
+            alert(prefix + message);
+        };
+
+        const getStatusClass = (status) => {
+            if (!status) return 'bg-gray-100 text-gray-800';
+            status = status.toLowerCase();
+            switch (status) {
+                case 'active': case 'ongoing': case 'scheduled': case 'approved': return 'bg-green-100 text-green-800';
+                case 'inactive': case 'blocked': case 'cancelled': case 'rejected': return 'bg-red-100 text-red-800';
+                case 'upcoming': case 'pending': return 'bg-blue-100 text-blue-800';
+                case 'postponed': return 'bg-yellow-100 text-yellow-800';
+                case 'completed': case 'final': return 'bg-gray-100 text-gray-800';
+                case 'live': return 'bg-red-100 text-red-800 animate-pulse';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        };
+
+        // --- RENDER FUNCTIONS --- //
+
+        const renderDashboard = () => {
+            const stats = db.stats || {};
+            document.getElementById('totalUsersStat').textContent = stats.totalUsers || 0;
+            document.getElementById('activeSportsStat').textContent = stats.activeSports || 0;
+            document.getElementById('upcomingEventsStat').textContent = stats.upcomingEvents || 0;
+            document.getElementById('pendingRegsStat').textContent = stats.pendingRegistrations || 0;
+
+            const recentActivitiesContainer = document.getElementById('recentActivitiesContainer');
+            recentActivitiesContainer.innerHTML = (db.adminLogs || []).slice(0, 4).map(log => {
+                let icon = 'fa-info-circle';
+                const action = log.action.toLowerCase();
+                if (action.includes('approve') || action.includes('add') || action.includes('create')) icon = 'fa-plus';
+                if (action.includes('delete') || action.includes('block') || action.includes('reject')) icon = 'fa-trash';
+                if (action.includes('update') || action.includes('edit')) icon = 'fa-pencil-alt';
+                
+                return `
+                <div class="flex items-start space-x-3">
+                    <div class="bg-blue-100 text-blue-800 rounded-full p-2 w-8 h-8 flex items-center justify-center"><i class="fas ${icon} fa-xs"></i></div>
+                    <div>
+                        <p class="font-medium text-sm">${log.action}</p>
+                        <p class="text-xs text-gray-500">${new Date(log.timestamp).toLocaleString()}</p>
+                    </div>
+                </div>`;
+            }).join('');
+        };
+
+        const renderUsersTable = () => {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = (db.users || []).map(user => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">${user.user_id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${user.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${user.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${user.student_id || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${user.role}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${getStatusClass(user.status)}">${user.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="text-blue-600 hover:text-blue-900 mr-4" data-action="edit-user" data-id="${user.user_id}"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-900" data-action="delete-user" data-id="${user.user_id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('') || `<tr><td colspan="7" class="text-center p-4">No users found.</td></tr>`;
+        };
+        
+        const renderSportsTable = () => {
+            const tbody = document.getElementById('sportsTableBody');
+            tbody.innerHTML = (db.sports || []).map(sport => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium">${sport.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${sport.max_players}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${getStatusClass(sport.status)}">${sport.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="text-blue-600 hover:text-blue-900 mr-4" data-action="edit-sport" data-id="${sport.sport_id}"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-900" data-action="delete-sport" data-id="${sport.sport_id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('') || `<tr><td colspan="4" class="text-center p-4">No sports found.</td></tr>`;
+        };
+
+        const renderEventsTable = () => {
+            const tbody = document.getElementById('eventsTableBody');
+            tbody.innerHTML = (db.events || []).map(event => `
+                 <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium">${event.event_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${event.sport_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${new Date(event.event_date).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${getStatusClass(event.status)}">${event.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="text-blue-600 hover:text-blue-900 mr-4" data-action="edit-event" data-id="${event.event_id}"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-900" data-action="delete-event" data-id="${event.event_id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-center p-4">No events found.</td></tr>`;
+        };
+
+        const renderSchedulesTable = () => {
+            const tbody = document.getElementById('schedulesTableBody');
+            // This table shows data from the events table
+            tbody.innerHTML = (db.events || []).map(item => {
+                const eventDate = new Date(item.event_date);
+                return `
+                 <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium">${item.event_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${eventDate.toLocaleDateString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${eventDate.toLocaleTimeString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${item.venue || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${getStatusClass(item.status)}">${item.status}</span></td>
+                </tr>`}).join('') || `<tr><td colspan="5" class="text-center p-4">No schedules found.</td></tr>`;
+        };
+
+        const renderRegistrationsTable = () => {
+            const tbody = document.getElementById('registrationsTableBody');
+            tbody.innerHTML = (db.registrations || []).map(reg => `
+                 <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium">${reg.user_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${reg.event_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${new Date(reg.registered_at).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="bg-green-500 text-white px-3 py-1 text-sm rounded-md hover:bg-green-600 mr-2" data-action="approve-reg" data-id="${reg.registration_id}">Approve</button>
+                        <button class="bg-red-500 text-white px-3 py-1 text-sm rounded-md hover:bg-red-600" data-action="reject-reg" data-id="${reg.registration_id}">Reject</button>
+                    </td>
+                </tr>`).join('') || `<tr><td colspan="4" class="text-center p-4">No pending registrations.</td></tr>`;
+        };
+        
+        const renderTeamsTable = () => {
+            const tbody = document.getElementById('teamsTableBody');
+            tbody.innerHTML = (db.teams || []).map(team => `
+                 <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium">${team.team_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${team.sport_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${team.captain_name || 'Not Assigned'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${team.player_count}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="text-blue-600 hover:text-blue-900 mr-4" data-action="edit-team" data-id="${team.team_id}"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-900" data-action="delete-team" data-id="${team.team_id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-center p-4">No teams found.</td></tr>`;
+        };
+
+        const renderScoresTable = () => {
+            const tbody = document.getElementById('scoresTableBody');
+             // This table also shows data from the events table
+            tbody.innerHTML = (db.events || []).map(event => `
+                 <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium">${event.event_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${getStatusClass(event.status)}">${event.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap font-bold">${event.team1_score} - ${event.team2_score}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${event.result.replace('_', ' ')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        ${event.status !== 'completed' ? `<button class="bg-blue-600 text-white px-3 py-1 text-sm rounded-md hover:bg-blue-700" data-action="update-score" data-id="${event.event_id}">Update Score</button>` : `<button class="bg-gray-400 text-white px-3 py-1 text-sm rounded-md cursor-not-allowed">View Result</button>`}
+                    </td>
+                </tr>`).join('') || `<tr><td colspan="5" class="text-center p-4">No scores to display.</td></tr>`;
+        };
+
+        const renderLogsTable = () => {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = (db.adminLogs || []).map(log => `
+                 <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(log.timestamp).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${log.admin_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${log.action}</td>
+                </tr>`).join('') || `<tr><td colspan="3" class="text-center p-4">No logs found.</td></tr>`;
+        };
+
+        const renderFeedback = () => {
+            const container = document.getElementById('feedbackContainer');
+            container.innerHTML = (db.feedback || []).map(item => `
+                <div class="bg-white rounded-lg shadow p-6 ${item.is_read == 1 ? 'opacity-60' : ''}">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-semibold">${item.user_name}</p>
+                            <p class="text-sm text-gray-500">${item.user_email}</p>
+                        </div>
+                        <span class="text-xs text-gray-400">${new Date(item.submitted_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="font-bold text-gray-800">${item.subject}</h4>
+                        <p class="mt-2 text-gray-600">${item.message}</p>
+                    </div>
+                    <div class="mt-4 text-right">
+                        <button class="text-blue-600 text-sm hover:underline" data-action="toggle-feedback-read" data-id="${item.feedback_id}">${item.is_read == 1 ? 'Mark as Unread' : 'Mark as Read'}</button>
+                    </div>
+                </div>`).join('') || `<div class="text-center p-4">No user feedback.</div>`;
+        };
+        
+        const renderAll = () => {
+            renderDashboard();
+            renderUsersTable();
+            renderSportsTable();
+            renderEventsTable();
+            renderSchedulesTable();
+            renderRegistrationsTable();
+            renderTeamsTable();
+            renderScoresTable();
+            renderLogsTable();
+            renderFeedback();
+        };
+
+        // --- MODAL & FORM LOGIC --- //
+        const showModal = (title, content) => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = content;
+            modal.classList.remove('modal-hidden');
+        };
+        const hideModal = () => modal.classList.add('modal-hidden');
+        
+        // This is a placeholder. A real app would have specific forms for each module.
+        const getGenericFormHtml = (action, item = {}) => {
+            const isEdit = item.id;
+            // Example for a simple Sport form
+            if (action.includes('sport')) {
+                return `
+                <form id="sportForm" data-id="${isEdit ? item.id : ''}">
+                    <label for="name">Sport Name</label><input type="text" id="name" name="name" value="${item.name || ''}" required>
+                    <label for="max_players">Max Players</label><input type="number" id="max_players" name="max_players" value="${item.max_players || '0'}" required>
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="active" ${item.status === 'active' ? 'selected' : ''}>Active</option>
+                        <option value="inactive" ${item.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                    </select>
+                    <button type="submit">${isEdit ? 'Update' : 'Add'} Sport</button>
+                </form>`;
+            }
+            // Add more form templates here for users, events, etc.
+            return `<p>Form for this action is not implemented yet.</p>`;
+        };
+
+        // --- EVENT LISTENERS --- //
+        
+        // Tab Switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                pageTitle.textContent = this.textContent.trim().replace(/<i[^>]*><\/i>/, '').trim();
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                document.getElementById(tabId)?.classList.add('active');
+                
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('bg-blue-900'));
+                this.classList.add('bg-blue-900');
+            });
+        });
+        
+        document.querySelectorAll('[data-tab-link]').forEach(button => {
+            button.addEventListener('click', function() { document.querySelector(`.tab-button[data-tab="${this.dataset.tabLink}"]`).click(); });
+        });
+
+        closeModalBtn.addEventListener('click', hideModal);
+        modal.addEventListener('click', e => e.target.classList.contains('modal-overlay') && hideModal());
+
+        // "Add" Button Listeners
+        document.getElementById('addSportBtn').addEventListener('click', () => showModal('Add New Sport', getGenericFormHtml('sport')));
+        // ... add other "add" listeners here, e.g., for users, events, etc.
+        document.getElementById('addUserBtn').addEventListener('click', () => alert('Add User form not implemented in this example. See comments in code.'));
+        document.getElementById('addEventBtn').addEventListener('click', () => alert('Add Event form not implemented in this example. See comments in code.'));
+        document.getElementById('addTeamBtn').addEventListener('click', () => alert('Add Team form not implemented in this example. See comments in code.'));
+
+
+        // Centralized handler for all dynamic button clicks
+        document.body.addEventListener('click', async e => {
+            const button = e.target.closest('button');
+            if (!button) return;
+
+            const { action, id } = button.dataset;
+            if (!action) return;
+            const recordId = parseInt(id);
+
+            // Handle all delete actions
+            if (action.startsWith('delete-')) {
+                if (confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+                    try {
+                        const result = await apiRequest(action, 'POST', { id: recordId });
+                        showAlert(result.message, 'success');
+                        await refreshDataAndRender();
+                    } catch (error) { /* Error is handled by apiRequest */ }
+                }
+            } 
+            // Handle edit actions
+            else if (action.startsWith('edit-')) {
+                 alert('Edit functionality is not fully wired up in this example.');
+                 // Example logic:
+                 // const itemType = action.split('-')[1]; // 'user', 'sport', etc.
+                 // const itemData = db[itemType + 's'].find(item => item[itemType + '_id'] === recordId);
+                 // showModal(`Edit ${itemType}`, getGenericFormHtml(action, itemData));
+            }
+            // Handle registration approval/rejection
+            else if (action === 'approve-reg' || action === 'reject-reg') {
+                try {
+                    const result = await apiRequest(action, 'POST', { id: recordId });
+                    showAlert(result.message, 'success');
+                    await refreshDataAndRender();
+                } catch (error) { /* Error handled by apiRequest */ }
+            }
+            // Handle feedback read/unread toggle
+            else if (action === 'toggle-feedback-read') {
+                 try {
+                    const result = await apiRequest(action, 'POST', { id: recordId });
+                    // No alert needed for this, just refresh
+                    await refreshDataAndRender();
+                } catch (error) { /* Error handled by apiRequest */ }
+            }
+            // Handle score updates
+            else if (action === 'update-score') {
+                alert('Update Score form not implemented in this example.');
+            }
+        });
+        
+        // Centralized handler for form submissions (inside the modal)
+        document.body.addEventListener('submit', async e => {
+            e.preventDefault();
+            const form = e.target;
+            const recordId = form.dataset.id ? parseInt(form.dataset.id) : null;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            if (recordId) data.id = recordId; // Add id for update actions
+
+            let action = '';
+            if (form.id === 'sportForm') {
+                action = recordId ? 'update_sport' : 'add_sport';
+            }
+            // Add other form types here...
+
+            if (action) {
+                try {
+                    const result = await apiRequest(action, 'POST', data);
+                    showAlert(result.message, 'success');
+                    hideModal();
+                    await refreshDataAndRender();
+                } catch(error) { /* Error handled by apiRequest */ }
+            }
+        });
+        
+        // Logout Logic
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to log out?')) {
+                // In a real app, this would also clear session/token data
+                showAlert('You have been logged out successfully.');
+                document.body.innerHTML = '<div style="position:fixed; inset:0; background:rgba(0,0,0,0.9); color:white; display:flex; justify-content:center; align-items:center; font-size:1.5rem; text-align:center;">You are logged out.<br>Please close this tab.</div>';
+            }
+        });
+
+        // --- INITIAL DATA LOAD --- //
+        async function initialize() {
+            try {
+                const result = await apiRequest('get_all_data');
+                db = result.data; // Cache the data
+                renderAll(); // Render all components
+            } catch (error) {
+                document.body.innerHTML = `<div style="padding: 2rem; text-align: center; color: red; font-size: 1.2rem;">
+                    <strong>Fatal Error:</strong> Could not connect to the server or load initial data.<br>
+                    Please ensure the PHP server is running and the database connection is correct.
+                </div>`;
+            }
+        }
+
+        initialize();
+
+    });
+    </script>
+</body>
+</html>

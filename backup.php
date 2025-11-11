@@ -1,0 +1,396 @@
+<?php
+// File: home.php
+
+// Start a session to manage user data and messages.
+session_start();
+
+// --- PREVENT BROWSER CACHING (SECURITY ADDITION) ---
+header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+// Include the database connection file.
+require_once 'config.php';
+
+// --- SESSION CHECK ---
+if (!isset($_SESSION['loggedin'])) {
+    header('Location: log.php');
+    exit();
+}
+
+$logged_in_user_id = $_SESSION['user_id'];
+$logged_in_user_name = $_SESSION['user_name'] ?? 'User';
+
+// --- FORM SUBMISSION LOGIC ---
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // --- Feedback submission logic ---
+    if (isset($_POST['submit_feedback'])) {
+        $subject = $conn->real_escape_string(trim($_POST['feedbackSubject']));
+        $message = $conn->real_escape_string(trim($_POST['feedbackMessage']));
+        $stmt = $conn->prepare("INSERT INTO feedback (user_id, subject, message, is_read, submitted_at) VALUES (?, ?, ?, 0, NOW())");
+        $stmt->bind_param("iss", $logged_in_user_id, $subject, $message);
+        $_SESSION['form_status'] = $stmt->execute() ? ['page' => 'feedback', 'type' => 'success', 'message' => 'Thank you! Your feedback has been submitted.'] : ['page' => 'feedback', 'type' => 'error', 'message' => 'Error: Could not submit your feedback.'];
+        $stmt->close();
+        header("Location: " . $_SERVER['PHP_SELF'] . "?page=feedback");
+        exit();
+    }
+    
+    // --- Registration submission logic for Departments ---
+    if (isset($_POST['submit_registration'])) {
+        $sport_id = (int)$_POST['sport_id'];
+        $department_id = (int)$_POST['department_id'];
+
+        if ($sport_id > 0 && $department_id > 0) {
+            $dept_stmt = $conn->prepare("SELECT department_name FROM departments WHERE department_id = ?");
+            $dept_stmt->bind_param("i", $department_id);
+            $dept_stmt->execute();
+            $dept_result = $dept_stmt->get_result();
+            
+            if ($dept_result->num_rows > 0) {
+                $department_name = $dept_result->fetch_assoc()['department_name'];
+                $check_stmt = $conn->prepare("SELECT registration_id FROM registrations WHERE user_id = ? AND sport_id = ? AND department = ? AND (status = 'pending' OR status = 'approved')");
+                $check_stmt->bind_param("iis", $logged_in_user_id, $sport_id, $department_name);
+                $check_stmt->execute();
+                
+                if ($check_stmt->get_result()->num_rows > 0) {
+                    $_SESSION['form_status'] = ['page' => 'registration', 'type' => 'error', 'message' => 'You already have a pending or approved registration for this sport and department.'];
+                } else {
+                    $stmt = $conn->prepare("INSERT INTO registrations (user_id, sport_id, department, status, registered_at) VALUES (?, ?, ?, 'pending', NOW())");
+                    $stmt->bind_param("iis", $logged_in_user_id, $sport_id, $department_name);
+                    $_SESSION['form_status'] = $stmt->execute() ? ['page' => 'registration', 'type' => 'success', 'message' => 'Your registration request has been sent!'] : ['page' => 'registration', 'type' => 'error', 'message' => 'Error: Could not submit your request.'];
+                    $stmt->close();
+                }
+                $check_stmt->close();
+            } else {
+                 $_SESSION['form_status'] = ['page' => 'registration', 'type' => 'error', 'message' => 'Error: The selected department is invalid.'];
+            }
+            $dept_stmt->close();
+        } else {
+            $_SESSION['form_status'] = ['page' => 'registration', 'type' => 'error', 'message' => 'Error: Please select a valid sport and department.'];
+        }
+        header("Location: " . $_SERVER['PHP_SELF'] . "?page=registration");
+        exit();
+    }
+}
+
+// --- DATA FETCHING FOR PAGE DISPLAY ---
+
+// Dashboard stats
+function getSportStats($conn, $sport_id) {
+    $stats = ['teams' => 0, 'players' => 0, 'matches' => 0];
+    $teams_result = $conn->query("SELECT COUNT(*) as count FROM teams WHERE sport_id = $sport_id");
+    if ($teams_result) $stats['teams'] = $teams_result->fetch_assoc()['count'];
+    $players_result = $conn->query("SELECT COUNT(DISTINCT tm.user_id) as count FROM team_members tm JOIN teams t ON tm.team_id = t.team_id WHERE t.sport_id = $sport_id");
+    if ($players_result) $stats['players'] = $players_result->fetch_assoc()['count'];
+    $matches_result = $conn->query("SELECT COUNT(*) as count FROM events WHERE sport_id = $sport_id AND status = 'scheduled'");
+    if ($matches_result) $stats['matches'] = $matches_result->fetch_assoc()['count'];
+    return $stats;
+}
+$cricket_stats = getSportStats($conn, 1);
+$football_stats = getSportStats($conn, 2);
+$basketball_stats = getSportStats($conn, 5);
+$volleyball_stats = getSportStats($conn, 3);
+$recent_matches = $conn->query("SELECT e.event_name, s.name as sport_name, t1.team_name as team1_name, t2.team_name as team2_name, DATE_FORMAT(e.event_date, '%b %d, %Y') as event_date, e.team1_score, e.team2_score, e.result FROM events e JOIN sports s ON e.sport_id = s.sport_id LEFT JOIN teams t1 ON e.team1_id = t1.team_id LEFT JOIN teams t2 ON e.team2_id = t2.team_id WHERE e.status = 'completed' ORDER BY e.event_date DESC LIMIT 5");
+
+// Upcoming Schedule
+$sql_upcoming = "
+    SELECT 
+        e.event_name, s.name as sport_name, 
+        t1.team_name as team1_name, t2.team_name as team2_name, 
+        DATE_FORMAT(e.event_date, '%b %d, %l:%i %p') as event_date, e.venue 
+    FROM events e 
+    JOIN sports s ON e.sport_id = s.sport_id 
+    LEFT JOIN teams t1 ON e.team1_id = t1.team_id 
+    LEFT JOIN teams t2 ON e.team2_id = t2.team_id 
+    WHERE e.status = 'schedule' AND e.event_date > NOW() 
+    ORDER BY e.event_date ASC 
+    LIMIT 5
+";
+$stmt_upcoming = $conn->prepare($sql_upcoming);
+$stmt_upcoming->execute();
+$upcoming_schedule = $stmt_upcoming->get_result();
+$stmt_upcoming->close();
+
+// Data for the registration form
+$sports_for_reg = $conn->query("SELECT sport_id, name FROM sports WHERE status = 'active' ORDER BY name");
+$departments_for_reg = $conn->query("SELECT department_id, department_name FROM departments ORDER BY department_name");
+
+// User's registration history
+$stmt_history = $conn->prepare("SELECT r.status, r.registered_at, r.department, s.name as sport_name FROM registrations r JOIN sports s ON r.sport_id = s.sport_id WHERE r.user_id = ? AND r.team_id IS NULL ORDER BY r.registered_at DESC");
+$stmt_history->bind_param("i", $logged_in_user_id);
+$stmt_history->execute();
+$user_registrations = $stmt_history->get_result();
+$stmt_history->close();
+
+$currentPage = $_GET['page'] ?? 'dashboard';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportsAcademix - <?php echo htmlspecialchars(ucfirst($currentPage)); ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb; --primary-dark: #1e40af; --sidebar-bg: #111827;
+            --content-bg: #f3f4f6; --card-bg: #ffffff; --text-primary: #1f2937;
+            --text-secondary: #6b7281; --border-color: #e5e7eb; --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--content-bg); margin: 0; color: var(--text-primary); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .container { display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { background-color: var(--sidebar-bg); color: #e5e7eb; width: 280px; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); transition: all 0.3s ease; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid #374151; }
+        .sidebar-brand { display: flex; align-items: center; gap: 0.75rem; }
+        .sidebar-logo { width: 40px; height: 40px; }
+        .sidebar-brand h1 { font-size: 1.25rem; font-weight: 600; margin: 0; color: #fff; }
+        nav { flex: 1; overflow-y: auto; padding: 1rem 0; }
+        nav ul { list-style: none; padding: 0; margin: 0; }
+        .nav-link { display: flex; align-items: center; padding: 0.85rem 1.5rem; text-decoration: none; color: #d1d5db; transition: all 0.3s ease; margin: 0.25rem 1rem; border-radius: 0.5rem; gap: 0.85rem; }
+        .nav-link i { width: 20px; text-align: center; font-size: 1rem; }
+        .nav-link:hover { background-color: #374151; color: #fff; }
+        .nav-link.active { background-image: linear-gradient(to right, var(--primary-color), #3b82f6); color: #fff; font-weight: 500; box-shadow: var(--shadow-md); }
+        .sidebar-logout { margin-top: auto; padding: 1.5rem; }
+        .logout-button { width: 90%; display: flex; align-items: center; justify-content: center; padding: 0.75rem; background: transparent; border: 1px solid #374151; color: #d1d5db; border-radius: 0.5rem; cursor: pointer; transition: all 0.3s ease; text-decoration: none; gap: 0.5rem; }
+        .logout-button:hover { background-color: #ef4444; border-color: #ef4444; color: #fff; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        main { flex: 1; overflow-y: auto; padding: 2.5rem; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .welcome-banner { background-image: linear-gradient(to right, var(--primary-dark), var(--primary-color)); color: #fff; padding: 2.5rem; border-radius: 0.75rem; margin-bottom: 2.5rem; box-shadow: var(--shadow-md); }
+        .welcome-banner h1 { margin: 0; font-size: 1.75rem; font-weight: 600; }
+        .welcome-banner p { margin: 0.25rem 0 0; color: #dbeafe; }
+        h2 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem; }
+        .grid { display: grid; gap: 1.5rem; }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .sport-card{background-color:var(--card-bg);padding:1.5rem;border-radius:.5rem;box-shadow:var(--shadow-sm);border-left:4px solid transparent;transition:all .3s ease}.sport-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}.cricket-card{border-left-color:#16a34a}.football-card{border-left-color:#dc2626}.basketball-card{border-left-color:#9333ea}.volleyball-card{border-left-color:#0284c7}.sport-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}.sport-card h3{font-size:1.25rem;font-weight:700;color:var(--text-primary)}.sport-card-icon{padding:.75rem;border-radius:50%}.sport-card-icon i{font-size:2rem}.icon-bg-green{background-color:#dcfce7}.icon-green{color:#16a34a}.icon-bg-red{background-color:#fee2e2}.icon-red{color:#dc2626}.icon-bg-purple{background-color:#f3e8ff}.icon-purple{color:#9333ea}.icon-bg-blue{background-color:#e0f2fe}.icon-blue{color:#0284c7}.sport-card-body p{margin:.25rem 0}.text-gray{color:var(--text-secondary)}.font-semibold{font-weight:600}.text-lg{font-size:1.125rem}.card-button{margin-top:1rem;width:100%;padding:.5rem 1rem;color:#fff;border:none;border-radius:.5rem;cursor:pointer; transition: background-color 0.3s ease;}.btn-green{background-color:#16a34a}.btn-green:hover{background-color:#15803d}.btn-red{background-color:#dc2626}.btn-red:hover{background-color:#b91c1c}.btn-purple{background-color:#9333ea}.btn-purple:hover{background-color:#7e22ce}.btn-blue{background-color:#2563eb}.btn-blue:hover{background-color:#1d4ed8}
+        .content-box { background-color: var(--card-bg); padding: 1rem; border-radius: 0.75rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); }
+        .content-box h3 { padding: 0.5rem 1rem; font-size: 1.1rem; font-weight: 600; }
+        .list-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 0.5rem; transition: background-color 0.2s ease; border-bottom: 1px solid var(--border-color); }
+        .list-item:last-child { border-bottom: none; }
+        .list-item:hover { background-color: #f9fafb; }
+        .list-item-icon { font-size: 1rem; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--primary-color); background-color: #e0f2fe; }
+        .list-item-details { flex-grow: 1; }
+        .list-item-details p { margin: 0; }
+        .font-medium { font-weight: 500; color: var(--text-primary); }
+        .text-sm { font-size: 0.875rem; color: var(--text-secondary); }
+        .list-item-aside { text-align: right; }
+        .page-content { background-color: var(--card-bg); padding: 2.5rem; border-radius: 0.75rem; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); }
+        .page-content p { color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem; }
+        .divider { border-top: 1px solid var(--border-color); margin: 2.5rem 0; }
+        .form-group { margin-bottom: 1.5rem; }
+        form label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-primary); }
+        .form-select, .form-textarea { width: 100%; padding: 0.75rem 1rem; border: 1px solid #d1d5db; border-radius: 0.5rem; box-sizing: border-box; font-family: 'Poppins', sans-serif; transition: all 0.2s ease; }
+        .form-select:focus, .form-textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); outline: none; }
+        .submit-btn { background-image: linear-gradient(to right, var(--primary-color), #3b82f6); color: #fff; font-weight: 600; padding: 0.85rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer; transition: all 0.3s ease; box-shadow: var(--shadow-sm); }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .status-message { padding: 1rem; margin-bottom: 1.5rem; border-radius: .5rem; border: 1px solid transparent; }
+        .status-success { background-color: #f0fdf4; color: #166534; border-color: #6ee7b7; }
+        .status-error { background-color: #fff1f2; color: #be123c; border-color: #fda4af; }
+        .status-tag { padding: .25rem .75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 500; }
+        .status-pending { background-color: #fefce8; color: #a16207; }
+        .status-approved { background-color: #f0fdf4; color: #15803d; }
+        .status-rejected { background-color: #fef2f2; color: #b91c1c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <img src="log.png" alt="Logo" class="sidebar-logo">
+                    <h1>Sports Academix</h1>
+                </div>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="?page=dashboard" class="nav-link <?php if($currentPage == 'dashboard') echo 'active'; ?>"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+                    <li><a href="?page=registration" class="nav-link <?php if($currentPage == 'registration') echo 'active'; ?>"><i class="fas fa-user-plus"></i><span>Sport Registration</span></a></li>
+                    <li><a href="?page=about" class="nav-link <?php if($currentPage == 'about') echo 'active'; ?>"><i class="fas fa-info-circle"></i><span>About</span></a></li>
+                    <li><a href="?page=feedback" class="nav-link <?php if($currentPage == 'feedback') echo 'active'; ?>"><i class="fas fa-comment-alt"></i><span>Feedback</span></a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-logout">
+                <a href="logout.php" class="logout-button"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <main>
+                <div class="welcome-banner">
+                    <h1>Welcome back, <?php echo htmlspecialchars($logged_in_user_name); ?>!</h1>
+                    <p>Here's your overview of all sports activities. Ready to play?</p>
+                </div>
+                
+                <div id="dashboard" class="tab-content <?php if($currentPage == 'dashboard') echo 'active'; ?>">
+                    <h2>Sports Overview</h2>
+                    <div class="grid grid-cols-4">
+                        <div class="sport-card cricket-card"><div class="sport-card-header"><h3>Cricket</h3><div class="sport-card-icon icon-bg-green"><i class="fas fa-baseball-ball icon-green"></i></div></div><div class="sport-card-body"><div><p class="text-gray">Teams</p><p class="text-lg font-semibold"><?php echo $cricket_stats['teams']; ?></p></div><div><p class="text-gray">Players</p><p class="text-lg font-semibold"><?php echo $cricket_stats['players']; ?></p></div></div><a href="cricket.php"><button class="card-button btn-green">View Details</button></a></div>
+                        <div class="sport-card football-card"><div class="sport-card-header"><h3>Football</h3><div class="sport-card-icon icon-bg-red"><i class="fas fa-futbol icon-red"></i></div></div><div class="sport-card-body"><div><p class="text-gray">Teams</p><p class="text-lg font-semibold"><?php echo $football_stats['teams']; ?></p></div><div><p class="text-gray">Players</p><p class="text-lg font-semibold"><?php echo $football_stats['players']; ?></p></div></div><a href="football.php"><button class="card-button btn-red">View Details</button></a></div>
+                        <div class="sport-card basketball-card"><div class="sport-card-header"><h3>Basketball</h3><div class="sport-card-icon icon-bg-purple"><i class="fas fa-basketball-ball icon-purple"></i></div></div><div class="sport-card-body"><div><p class="text-gray">Teams</p><p class="text-lg font-semibold"><?php echo $basketball_stats['teams']; ?></p></div><div><p class="text-gray">Players</p><p class="text-lg font-semibold"><?php echo $basketball_stats['players']; ?></p></div></div><a href="basketball.php"><button class="card-button btn-purple">View Details</button></a></div>
+                        <div class="sport-card volleyball-card"><div class="sport-card-header"><h3>Volleyball</h3><div class="sport-card-icon icon-bg-blue"><i class="fas fa-volleyball-ball icon-blue"></i></div></div><div class="sport-card-body"><div><p class="text-gray">Teams</p><p class="text-lg font-semibold"><?php echo $volleyball_stats['teams']; ?></p></div><div><p class="text-gray">Players</p><p class="text-lg font-semibold"><?php echo $volleyball_stats['players']; ?></p></div></div><a href="volleyball.php"><button class="card-button btn-blue">View Details</button></a></div>
+                    </div>
+                    <div class="grid grid-cols-2" style="margin-top: 2.5rem;">
+                        <div class="content-box">
+                            <h3 style="padding: 0.5rem 1rem; font-size: 1.1rem; font-weight: 600;">Upcoming Schedule</h3>
+                            <?php if ($upcoming_schedule->num_rows > 0): ?>
+                                <?php while($schedule = $upcoming_schedule->fetch_assoc()): ?>
+                                    <div class="list-item">
+                                        <div class="list-item-icon"><i class="fas fa-calendar-day"></i></div>
+                                        <div class="list-item-details">
+                                            <p class="font-medium"><?php echo htmlspecialchars($schedule['team1_name'] ?? 'TBD'); ?> vs <?php echo htmlspecialchars($schedule['team2_name'] ?? 'TBD'); ?></p>
+                                            <p class="text-sm text-gray"><?php echo htmlspecialchars($schedule['sport_name']); ?></p>
+                                        </div>
+                                        <div class="list-item-aside">
+                                            <p class="font-medium"><?php echo $schedule['event_date']; ?></p>
+                                            <p class="text-sm text-gray"><?php echo htmlspecialchars($schedule['venue']); ?></p>
+                                        </div>
+                                    </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <p style="text-align: center; padding: 1rem; color: var(--text-secondary);">No upcoming matches scheduled.</p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="content-box">
+                            <h3 style="padding: 0.5rem 1rem; font-size: 1.1rem; font-weight: 600;">Recent Results</h3>
+                            <?php if($recent_matches->num_rows > 0): ?>
+                                <?php mysqli_data_seek($recent_matches, 0); while($match = $recent_matches->fetch_assoc()): ?>
+                                    <div class="list-item">
+                                        <div class="list-item-icon"><i class="fas fa-trophy"></i></div>
+                                        <div class="list-item-details">
+                                            <p class="font-medium"><?php echo htmlspecialchars($match['team1_name']); ?> vs <?php echo htmlspecialchars($match['team2_name']); ?></p>
+                                            <p class="text-sm text-gray"><?php echo htmlspecialchars($match['sport_name']); ?></p>
+                                        </div>
+                                        <div class="list-item-aside">
+                                            <p class="font-medium"><?php echo $match['team1_score']; ?> - <?php echo $match['team2_score']; ?></p>
+                                            <p class="text-sm text-gray"><?php echo str_replace('_', ' ', ucfirst($match['result'])); ?></p>
+                                        </div>
+                                    </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <p style="text-align: center; padding: 1rem; color: var(--text-secondary);">No recent match results.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="registration" class="tab-content <?php if($currentPage == 'registration') echo 'active'; ?>">
+                    <div class="page-content">
+                        <h2>Register for a Sport</h2>
+                        <?php 
+                        if (isset($_SESSION['form_status']) && $_SESSION['form_status']['page'] === 'registration') {
+                            $status = $_SESSION['form_status'];
+                            echo '<div class="status-message ' . ($status['type'] === 'success' ? 'status-success' : 'status-error') . '">' . htmlspecialchars($status['message']) . '</div>';
+                            unset($_SESSION['form_status']);
+                        }
+                        ?>
+                        <p>Select a sport and your department, then send a registration request to the admin for approval.</p>
+                        
+                        <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>?page=registration" method="POST">
+                            <div class="form-group">
+                                <label for="sport_id">1. Select Sport</label>
+                                <select id="sport_id" name="sport_id" class="form-select" required>
+                                    <option value="">-- Choose a Sport --</option>
+                                    <?php if($sports_for_reg): mysqli_data_seek($sports_for_reg, 0); while($sport = $sports_for_reg->fetch_assoc()): ?>
+                                        <option value="<?php echo $sport['sport_id']; ?>"><?php echo htmlspecialchars($sport['name']); ?></option>
+                                    <?php endwhile; endif; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="department_id">2. Select Your Department</label>
+                                <select id="department_id" name="department_id" class="form-select" required>
+                                    <option value="">-- Choose a Department --</option>
+                                     <?php if($departments_for_reg): mysqli_data_seek($departments_for_reg, 0); while($dept = $departments_for_reg->fetch_assoc()): ?>
+                                        <option value="<?php echo $dept['department_id']; ?>"><?php echo htmlspecialchars($dept['department_name']); ?></option>
+                                    <?php endwhile; endif; ?>
+                                </select>
+                            </div>
+                            
+                            <div style="text-align: right;">
+                                <button type="submit" name="submit_registration" class="submit-btn">Send Request</button>
+                            </div>
+                        </form>
+
+                        <div class="divider"></div>
+                        <h3 class="h3">My Registration History</h3>
+                        <div class="content-box">
+                            <?php if ($user_registrations->num_rows > 0): ?>
+                                <?php while($reg = $user_registrations->fetch_assoc()): ?>
+                                    <div class="list-item">
+                                        <div class="list-item-icon"><i class="fas fa-clipboard-list"></i></div>
+                                        <div class="list-item-details">
+                                            <p class="font-medium">Sport: <?php echo htmlspecialchars($reg['sport_name']); ?> (<?php echo htmlspecialchars($reg['department']); ?>)</p>
+                                            <p class="text-sm text-gray">Requested on: <?php echo date('M d, Y, g:i A', strtotime($reg['registered_at'])); ?></p>
+                                        </div>
+                                        <div class="list-item-aside">
+                                            <span class="status-tag status-<?php echo strtolower($reg['status']); ?>"><?php echo htmlspecialchars(ucfirst($reg['status'])); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <p style="text-align:center; padding:1rem; color: var(--text-secondary);">You have not submitted any sport registration requests yet.</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="about" class="tab-content <?php if($currentPage == 'about') echo 'active'; ?>">
+                    <div class="page-content">
+                        <h2>About SportsAcademix</h2>
+                        <p>Welcome to SportsAcademix, the premier platform for managing all sports activities for our institution. Our goal is to provide a seamless and engaging experience for students, faculty, and administrators.</p>
+                        <p>From tracking match schedules and results to managing team registrations and viewing player statistics, our system is designed to be your central hub for all things sports-related. We believe in the power of sports to build community, foster teamwork, and promote a healthy lifestyle.</p>
+                    </div>
+                </div>
+                
+                <div id="feedback" class="tab-content <?php if($currentPage == 'feedback') echo 'active'; ?>">
+                    <div class="page-content">
+                        <h2>Submit Feedback</h2>
+                        <?php 
+                        if (isset($_SESSION['form_status']) && $_SESSION['form_status']['page'] === 'feedback') {
+                            $status = $_SESSION['form_status'];
+                            echo '<div class="status-message ' . ($status['type'] === 'success' ? 'status-success' : 'status-error') . '">' . htmlspecialchars($status['message']) . '</div>';
+                            unset($_SESSION['form_status']);
+                        }
+                        ?>
+                        <p>We value your opinion! Please let us know if you have any suggestions, ideas for new features, or if you encounter any issues while using the platform.</p>
+                        <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>?page=feedback" method="POST">
+                            <div class="form-group">
+                                <label for="feedbackSubject">Subject</label>
+                                <select id="feedbackSubject" name="feedbackSubject" class="form-select" required>
+                                    <option value="" disabled selected>Please select a subject...</option>
+                                    <option value="General Feedback">General Feedback</option>
+                                    <option value="Bug Report">Bug Report</option>
+                                    <option value="Feature Request">Feature Request</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="feedbackMessage">Your Message</label>
+                                <textarea id="feedbackMessage" name="feedbackMessage" rows="5" class="form-textarea" placeholder="Please describe your feedback in detail..." required></textarea>
+                            </div>
+                            <div style="text-align: right;">
+                                <button type="submit" name="submit_feedback" class="submit-btn">Send Feedback</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <script>
+        // No client-side JavaScript is needed for this page's core functionality.
+    </script>
+</body>
+</html>
+<?php
+$conn->close();
+?>

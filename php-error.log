@@ -1,0 +1,12 @@
+[19-Sep-2025 05:04:39 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined function handle_registrations() in D:\xampp\htdocs\miniproject\api.php:39
+Stack trace:
+#0 {main}
+  thrown in D:\xampp\htdocs\miniproject\api.php on line 39
+[19-Sep-2025 05:04:39 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined function handle_teams() in D:\xampp\htdocs\miniproject\api.php:40
+Stack trace:
+#0 {main}
+  thrown in D:\xampp\htdocs\miniproject\api.php on line 40
+[19-Sep-2025 05:04:39 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined function handle_feedback() in D:\xampp\htdocs\miniproject\api.php:41
+Stack trace:
+#0 {main}
+  thrown in D:\xampp\htdocs\miniproject\api.php on line 41
